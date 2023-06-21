@@ -1,0 +1,36 @@
+= OAuth 2 + OIDC Playground
+
+Para iniciar o playground execute o script `run.sh`:
+
+[source,bash]
+----
+chmod +x run.sh
+./run.sh
+----
+
+====
+Necessário ter o podman instalado!
+====
+
+A inicialização do RHSSO pode demorar alguns minutos.
+Para verificar se o mesmo iniciou com sucesso aguarde a seguinte mensagem aparecer no log:
+
+[source,bash]
+----
+01:05:07,964 INFO  [org.jboss.as] (Controller Boot Thread) WFLYSRV0054: Admin console is not enabled
+----
+
+O comando abaixo pode ser utilizado para verificar:
+
+[source,bash]
+----
+podman logs -f sso | grep "Admin console is not enabled"
+----
+
+Acesse o playgroud em http://localhost:8080/ e se divirta!
+
+====
+O RHSSO está disponível em http://localhost:8080/
+
+Acesse utilizando usuário admin e senha admin
+====

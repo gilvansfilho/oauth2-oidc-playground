@@ -1,0 +1,34 @@
+body { width: 100%; text-align: center; font-size: 16px; line-height: 1.3; }
+
+input {
+    padding: 6px;
+    font-size: 16px;
+    size: 100px;
+    border-width: 0px;
+    border-color: #CCCCCC;
+    background-color: #FFFFFF;
+    color: #000000;
+    border-style: solid;
+    border-radius: 5px;
+    box-shadow: 0px 0px 3px rgba(66,66,66,.51);
+    text-shadow: -50px 0px 0px rgba(66,66,66,.0);
+}
+input:focus {
+    outline:none;
+}
+
+input:disabled {
+    background-color: #E6E6E6;
+}
+
+.code { border: 1px solid; padding: 15px; background-color: gainsboro; margin-top: 20px; margin-bottom: 20px;}
+.warn { border: 1px solid orange; padding: 15px; background-color: #FFC300; margin-top: 20px; margin-bottom: 20px;}
+
+.tg  {border-collapse:collapse;border-spacing:0;}
+.tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:16px; overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:16px;font-weight:bold;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
+
+#container { max-width: 80%; min-width: 900px; text-align: left; margin: 0px auto; overflow-wrap: break-word; }
+
+ul { margin: 0; padding: 0px 30px; }

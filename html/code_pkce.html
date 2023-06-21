@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>OAuth 2 / OIDC Playground - Authorization Code + PKCE</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    
+    <link rel="stylesheet" href="style.css">
+    <script src="functions.js"></script>
+    
+    <script type="text/javascript">
+
+        initPlayground = () => {
+
+            var tokenEndpoint = get("tokenEndpoint");
+            var authEndpoint = get("authEndpoint");
+            var clientId = get("clientId");
+
+            var authEndpointParams = "?response_type=code&client_id={clientId}&redirect_uri={redirect_uri}&scope=openid+profile+email&state={state}&code_challenge={code_challenge}&code_challenge_method=S256";
+
+            limpar = () => {
+
+                tokenEndpoint = get("tokenEndpoint");
+                authEndpoint = get("authEndpoint");
+                clientId = get("clientId");
+
+                window.localStorage.clear();
+
+                window.localStorage.setItem("authEndpoint", authEndpoint);
+                window.localStorage.setItem("tokenEndpoint", tokenEndpoint);
+                window.localStorage.setItem("clientId", clientId);
+
+                hideElement("fase1");
+                hideElement("fase2");
+                hideElement("fase3");
+                hideElement("fase4");
+                hideElement("fase5");
+                setStep("fase1");
+                renderizar();
+            }
+
+            randomString = (length) => {
+                let possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                let random = '';
+                for (let i = 0; i < length; i++)
+                    random += possible.charAt(Math.floor(Math.random() * possible.length));
+                return random;
+            }
+
+            codeChallenge = async (codeVerifier) => {
+                var digest = await crypto.subtle.digest("SHA-256",
+                new TextEncoder().encode(codeVerifier));
+
+                return btoa(String.fromCharCode(...new Uint8Array(digest)))
+                    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+            }
+            
+            getStep = () => { return get("step"); }
+            setStep = (step) => { persist("step", step) }
+
+            getState = () => {
+                var state = get("state");
+                if(!state) {
+                    state = randomString(40);
+                    persist("state", state)
+                }
+
+                return state;
+            }
+
+            getRedirectUri = () => {
+                var redirectUri = get("redirectUri");
+                if(!redirectUri) {
+                    redirectUri = encodeURIComponent(window.location.href);
+                    persist("redirectUri", redirectUri)
+                }
+
+                return redirectUri;
+            }
+
+            getUrlComCode = () => {
+                var urlComCode = get("urlComCode");
+                if(!urlComCode) {
+                    urlComCode = window.location.href;
+                    persist("urlComCode", urlComCode)
+                }
+
+                return urlComCode;
+            }
+
+            getCodeVerifier = () => {
+                var codeVerifier = get("codeVerifier");
+                if(!codeVerifier) {
+                    codeVerifier = randomString(60);
+                    persist("codeVerifier", codeVerifier)
+                }
+
+                return codeVerifier;
+            }
+
+            getAuthUrl = async () => {
+                let code_verifier = getCodeVerifier();
+                let code_challenge = await codeChallenge(code_verifier);
+
+                return `${authEndpoint}${authEndpointParams}`
+                    .replace("{state}", getState())
+                    .replace("{redirect_uri}", getRedirectUri())
+                    .replace("{code_challenge}", code_challenge)
+                    .replace("{clientId}", clientId);
+            }
+
+            authUrl = () => { return getAuthUrl() }
+
+            fase1 = async () => {
+                showElement("fase1");
+                window.document.getElementById("authEndpoint").innerText = await authUrl();
+            }
+
+            fase2 = () => {
+                fase1();
+                showElement("fase2");
+            }
+
+            fase3 = () => {
+                fase1();
+                fase2();
+                disableElement("btnLogar");
+
+                window.document.getElementById("urlComCode").innerText = getUrlComCode();
+                
+                showElement("fase3");
+            }
+
+            fase4 = () => {
+                fase1();
+                fase2();
+                fase3();
+                disableElement("btnCode");
+                window.document.getElementById("code").innerText = get("code");
+                showElement("fase4");
+            }
+
+            fase5 = () => {
+                fase1();
+                fase2();
+                fase3();
+                fase4();
+                //disableElement("btnToken");
+                showElement("fase5");
+            }
+
+            renderizar = () => {
+                switch (getStep()) {
+                    case 'fase1':
+                        fase1();
+                        break;
+                    case 'fase2':
+                        fase2();
+                        break;
+                    case 'fase3':
+                        fase3();
+                        break;
+                    case 'fase4':
+                        fase4();
+                        break;
+                    case 'fase5':
+                        fase5();
+                        break;
+                    default:
+                        alert("Algo deu errado!!");
+                }
+            }
+
+            faseAtual = () => {
+                return getStep().substring(4,5);
+            }
+
+            avancar = () => {
+                let fase = faseAtual();
+                fase++;
+                setStep(`fase${fase}`);
+                renderizar();
+            }
+
+            extrairCode = () => {
+                if(params.state != getState())
+                    alert('Operação não pode ser realizada pois o state recebido é diferente do esperado!');
+                else {
+                    let code = params.code;
+                    persist("code", code);
+                    window.location.href = "/code_pkce.html#fase4";
+                }
+                
+            }
+
+            logar = async () => { window.location.replace( await authUrl()) }
+
+            window.document.getElementById("resetButton").onclick = () => { limpar(); window.location.href = "/code_pkce.html" }
+
+            //window.document.getElementById("avancar").onclick = () => { avancar(); }
+
+            window.document.getElementById("btnCode").onclick = () => { extrairCode(); }
+
+            window.document.getElementById("btnToken").onclick = async () => { 
+                let redirectUri = getRedirectUri();
+                let code = get("code");
+                let code_verifier = getCodeVerifier();
+                let clientId = get("clientId");
+                let res = await fetch(get("tokenEndpoint"), {
+                    method: 'POST',
+                    body: `grant_type=authorization_code&redirect_uri=${redirectUri}&client_id=${clientId}&code=${code}&code_verifier=${code_verifier}`,
+                    headers: {
+                        "Content-type": "application/x-www-form-urlencoded"
+                    }
+                }); 
+
+                let data = await res.json();
+                window.document.getElementById("tokenResponse").innerText = JSON.stringify(data, null, 2);
+
+                window.location.href = "/code_pkce.html#fase5";
+                
+                if(getStep() == "fase4")
+                    avancar();
+            }
+
+            window.document.getElementById("btnLogar").onclick = () => { logar() }
+
+            if(!tokenEndpoint || !authEndpoint || !clientId)
+                window.location.href = "/?reset=true"
+
+            if(get("code")) {
+                setStep("fase4");
+            } else if(params.code) {
+                setStep("fase3");
+            } else if (!getStep() || getStep() == "fase1") {
+                limpar();
+            } 
+
+            renderizar();
+            
+        }
+
+        </script>
+</head>
+<body onload="initPlayground()">
+<div id="container">
+
+    <h1>OAuth 2 + OIDC Playground</h1>
+    
+    <br/>
+    <button onclick="window.location.href = '/?configurado=true'" type="button">Home</button> 
+    <button id="resetButton" type="button">Resetar</button> 
+    <!-- <button id="avancar" type="button">Próximo passo</button> -->
+    <br/><br/>
+    
+    <h1>Authorization Code + PKCE</h1>
+    <div id="fase1" hidden>
+        <h2>Passo 1 - Authorization Request</h2>
+        Nessa fase a aplicação deve direcionar o usuário para o Authorization Server afim de que o processo de autorização seja realizado.<br/>
+        O processo consiste em redirecionar o usuário para o Authorization Server passando os parâmetros necessários.<br/><br/>
+
+        <table class="tg">
+        <thead>
+          <tr>
+            <th class="tg-0pky">Parâmetro</th>
+            <th class="tg-0pky">Descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tg-0pky">response_type</td>
+            <td class="tg-0pky">Deverá possuir o valor `code`</td>
+          </tr>
+          <tr>
+            <td class="tg-0pky">client_id</td>
+            <td class="tg-0pky">Identificador do client</td>
+          </tr>
+          <tr>
+            <td class="tg-0pky">redirect_uri</td>
+            <td class="tg-0pky">URI de retorno cadastrada junto com o client. Deve usar o formato URL Encode.</td>
+          </tr>
+          <tr>
+            <td class="tg-0pky">scope</td>
+            <td class="tg-0pky">Escopo da solicitação. Se não incluir openid será considerada uma request oauth2.</td>
+          </tr>
+          <tr>
+            <td class="tg-0pky">state</td>
+            <td class="tg-0pky">Valor opaco aleatório que deve ser utilizado pelo client para manter estado entre as requisições e seus retornos. </td>
+          </tr>
+          <tr>
+            <td class="tg-0pky">code_challenge_method</td>
+            <td class="tg-0pky">S256 ou PLAIN conforme especificação.</td>
+          </tr>
+          <tr>
+            <td class="tg-0pky">code_challenge</td>
+            <td class="tg-0pky">Valor igual ao code_verifier se o code_challenge_method for `PLAIN`, se não BASE64URL-ENCODE(SHA256(ASCII(code_verifier))).<br/>
+                O code_verifier deve ser uma String aleatória que deve possuir entre 43 e 128 caracteres usando os caracteres [A-Z] / [a-z] / [0-9] / "-" / "." / " _" / "~". 
+            </td>
+          </tr>
+        </tbody>
+        </table>
+        <br/>
+        Abaixo exemplo de URL gerada para redirecionamento:
+
+        <div class="code" id="authEndpoint"></div>
+
+        Para fins de demostração o redirecionamento não está ocorrendo de forma automática.<br/>
+        Utilize o botão abaixo para realizar o redirecionamento.<br/><br/>
+
+        <button id="btnLogar" type="button">Logar</button><br/><br/>
+
+    </div> 
+
+    <div id="fase2" hidden>
+        <h2>Passo 2 - Autenticação do usuário</h2>
+        Esse passo é executado pelo usuário diretamente no Authorization Server.<br/>
+        <br/>
+    </div>
+    
+    <div id="fase3" hidden>
+        <h2>Passo 3 - Obter o code</h2>
+        Nessa fase o authorization server redireciona o usuário de volta para a aplicação cliente.<br/>
+        A aplicação deve obter da URL o code e utilizar o mesmo no passo seguinte.
+        <div class="code" id="urlComCode"></div>
+
+        DICA: Observe o parâmetro code na URL acima.<br/><br/>
+    
+        <button id="btnCode" type="button">Extrair code</button><br/><br/>
+        
+    </div>
+
+    <div id="fase4" hidden>
+        <h2>Passo 4 - Token Request</h2>
+        Obtido o code a aplicação deve fazer a requisição para obtenção do token.<br/>
+        O valor obtido no passo anterior deve ser informado na request.
+
+        <div class="code" id="code"></div>
+
+        DICA: Inspecione a requisição realizada pelo Browser.<br/><br/>
+
+        <button id="btnToken" type="button">Obter token</button><br/>
+        <br/>
+    </div>
+
+    <div id="fase5" hidden>
+        <h2>Passo 5 - Obtenção dos tokens</h2>
+        Após realizar as devidas validações o Authorization Server responde a requisição.<br/>
+        Abaixo a resposta obtida:
+        
+        <div class="code" id="tokenResponse"></div>
+        <br/>
+        
+    </div>
+
+</div>
+</body>
+</html>

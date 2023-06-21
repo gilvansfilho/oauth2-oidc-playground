@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>OAuth 2 / OIDC Playground</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+
+    <link rel="stylesheet" href="style.css">
+    <script src="functions.js"></script>
+
+    <script type="text/javascript">
+    initPlayground = () => {
+
+        resetButton = () => {
+            window.localStorage.clear();
+            window.location.href = "/";
+        }
+
+        configurar = () => {
+            showElement("fluxos");
+            persist("authEndpoint", window.document.getElementById("authEndpoint").value);
+            disableElement("authEndpoint");
+            persist("tokenEndpoint", window.document.getElementById("tokenEndpoint").value);
+            disableElement("tokenEndpoint");
+            persist("clientId", window.document.getElementById("clientId").value);
+            disableElement("clientId");
+        }
+
+        window.document.getElementById("resetButton").onclick = () => { resetButton(); }
+        window.document.getElementById("configurar").onclick = () => { configurar(); }
+
+        let authEndpoint = get("authEndpoint");
+        if(!authEndpoint)
+            window.document.getElementById("authEndpoint").value = "http://localhost:8282/auth/realms/master/protocol/openid-connect/auth";
+        else
+            window.document.getElementById("authEndpoint").value = authEndpoint;
+
+        let tokenEndpoint = get("tokenEndpoint");
+        if(!tokenEndpoint)
+            window.document.getElementById("tokenEndpoint").value = "http://localhost:8282/auth/realms/master/protocol/openid-connect/token";
+        else
+            window.document.getElementById("tokenEndpoint").value = tokenEndpoint;
+
+        let clientId = get("clientId");
+        if(!clientId)
+            window.document.getElementById("clientId").value = "client";
+        else
+            window.document.getElementById("clientId").value = clientId;
+
+        if(params.reset) {
+            resetButton();
+        }
+
+        if(params.configurado) {
+            configurar();
+        }
+
+    }
+    </script>
+</head>
+<body onload="initPlayground()">
+<div id="container">
+
+    <h1>OAuth 2 + OIDC Playground</h1>
+    <div id="config">
+        <h2>Configurações:</h2>
+        <table style="margin-bottom: 20px;">
+            <tbody>
+              <tr>
+                <td style="padding: 10px 5px">Auth Endpoint</td>
+                <td><input id="authEndpoint" size="100"></input></td>  
+              </tr>
+              <tr>
+                <td style="padding: 10px 5px">Token Endpoint</td>
+                <td><input id="tokenEndpoint" size="100"></input></td>  
+              </tr>
+              <tr>
+                <td style="padding: 10px 5px">Client ID</td>
+                <td><input id="clientId" size="100"></input></td>  
+              </tr>
+            </tbody>
+        </table>
+
+        <button id="resetButton" type="button">Resetar</button> <button id="configurar" type="button">Configurar</button> 
+        <br/><br/>
+    </div>
+    <div id="fluxos" hidden>
+
+        <table class="tg">
+        <thead>
+          <tr>
+            <th class="tg-0pky">Fluxo</th>
+            <th class="tg-0pky">Keycloak / RHSSO</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tg-0pky">Authorization Code + PKCE</td>
+            <td class="tg-0pky">
+              <ul>
+              <li>Client Protocol: openid-connect </li>
+              <li>Access Type: public </li>
+              <li>Standard Flow Enabled: on </li>
+              <li>Valid Redirect URIs: * </li>
+              <li>Web Origins: * </li>
+              </ul>
+            </td>
+            <td class="tg-0pky"><a href="code_pkce.html">Acessar</a></td>
+            
+          </tr>
+        </tbody>
+        </table>
+
+        <div class="warn">Antes de iniciar o exercício desejado certifique-se de criar e configurar o client conforme consta na coluna <b>Keycloak / RHSSO</b></div>
+
+    </div> 
+
+</div>
+</body>
+</html>
