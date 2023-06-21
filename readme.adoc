@@ -1,5 +1,17 @@
 = OAuth 2 + OIDC Playground
 
+Um local para "brincar" com os fluxos do OAuth2 / OIDC.
+
+Fluxo disponíves:
+
+* Public clients:
+** Authorization Code + PKCE
+* Confidential clients:
+** Authorization Code + PKCE
+** Clients Credentials
+
+== Como executar
+
 Para iniciar o playground execute o script `run.sh`:
 
 [source,bash]
@@ -8,9 +20,7 @@ chmod +x run.sh
 ./run.sh
 ----
 
-====
-Necessário ter o podman instalado!
-====
+NOTE: Necessário ter o podman instalado!
 
 A inicialização do RHSSO pode demorar alguns minutos.
 Para verificar se o mesmo iniciou com sucesso aguarde a seguinte mensagem aparecer no log:
@@ -29,8 +39,5 @@ podman logs -f sso | grep "Admin console is not enabled"
 
 Acesse o playgroud em http://localhost:8080/ e se divirta!
 
-====
-O RHSSO está disponível em http://localhost:8080/
-
+NOTE: O RHSSO está disponível em http://localhost:8282/
 Acesse utilizando usuário admin e senha admin
-====

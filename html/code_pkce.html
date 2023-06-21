@@ -16,6 +16,7 @@
             var tokenEndpoint = get("tokenEndpoint");
             var authEndpoint = get("authEndpoint");
             var clientId = get("clientId");
+            var clientSecret = get("clientSecret");
 
             var authEndpointParams = "?response_type=code&client_id={clientId}&redirect_uri={redirect_uri}&scope=openid+profile+email&state={state}&code_challenge={code_challenge}&code_challenge_method=S256";
 
@@ -24,12 +25,14 @@
                 tokenEndpoint = get("tokenEndpoint");
                 authEndpoint = get("authEndpoint");
                 clientId = get("clientId");
+                clientSecret = get("clientSecret");
 
                 window.localStorage.clear();
 
                 window.localStorage.setItem("authEndpoint", authEndpoint);
                 window.localStorage.setItem("tokenEndpoint", tokenEndpoint);
                 window.localStorage.setItem("clientId", clientId);
+                window.localStorage.setItem("clientSecret", clientSecret);
 
                 hideElement("fase1");
                 hideElement("fase2");
@@ -38,6 +41,11 @@
                 hideElement("fase5");
                 setStep("fase1");
                 renderizar();
+            }
+
+            reset = () => {
+                limpar();
+                window.location.href = "/code_pkce.html"
             }
 
             randomString = (length) => {
@@ -49,8 +57,7 @@
             }
 
             codeChallenge = async (codeVerifier) => {
-                var digest = await crypto.subtle.digest("SHA-256",
-                new TextEncoder().encode(codeVerifier));
+                var digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codeVerifier));
 
                 return btoa(String.fromCharCode(...new Uint8Array(digest)))
                     .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
@@ -112,9 +119,15 @@
 
             authUrl = () => { return getAuthUrl() }
 
+            getHeaderAuthorization = () => {
+                return "Basic " + btoa(`${clientId}:${clientSecret}`)
+            }
+
             fase1 = async () => {
                 showElement("fase1");
                 window.document.getElementById("authEndpoint").innerText = await authUrl();
+                window.document.getElementById("codeVerifier").innerText = await getCodeVerifier();
+                window.document.getElementById("codeChallenge").innerText = await codeChallenge(getCodeVerifier());
             }
 
             fase2 = () => {
@@ -138,6 +151,13 @@
                 fase3();
                 disableElement("btnCode");
                 window.document.getElementById("code").innerText = get("code");
+                window.document.getElementById("tokenEndpoint").innerText = tokenEndpoint;
+                window.document.getElementById("requestBody").innerText = getRequestBody();
+                if(clientSecret) {
+                    showElement("secret");
+                    window.document.getElementById("headerAuthorization").innerText = "Authorization: " + getHeaderAuthorization();;
+                }
+                    
                 showElement("fase4");
             }
 
@@ -196,23 +216,30 @@
 
             logar = async () => { window.location.replace( await authUrl()) }
 
-            window.document.getElementById("resetButton").onclick = () => { limpar(); window.location.href = "/code_pkce.html" }
-
-            //window.document.getElementById("avancar").onclick = () => { avancar(); }
-
-            window.document.getElementById("btnCode").onclick = () => { extrairCode(); }
-
-            window.document.getElementById("btnToken").onclick = async () => { 
+            getRequestBody = () => {
                 let redirectUri = getRedirectUri();
                 let code = get("code");
                 let code_verifier = getCodeVerifier();
                 let clientId = get("clientId");
+                return `grant_type=authorization_code&redirect_uri=${redirectUri}&client_id=${clientId}&code=${code}&code_verifier=${code_verifier}`;
+            }
+
+            window.document.getElementById("resetButton").onclick = () => { reset(); }
+
+            window.document.getElementById("btnCode").onclick = () => { extrairCode(); }
+
+            window.document.getElementById("btnToken").onclick = async () => { 
+
+                let headers = new Headers();
+                headers.append("Content-type", "application/x-www-form-urlencoded");
+                
+                if(clientSecret)
+                    headers.append("Authorization", getHeaderAuthorization());
+                
                 let res = await fetch(get("tokenEndpoint"), {
                     method: 'POST',
-                    body: `grant_type=authorization_code&redirect_uri=${redirectUri}&client_id=${clientId}&code=${code}&code_verifier=${code_verifier}`,
-                    headers: {
-                        "Content-type": "application/x-www-form-urlencoded"
-                    }
+                    body: getRequestBody(),
+                    headers
                 }); 
 
                 let data = await res.json();
@@ -225,6 +252,9 @@
             }
 
             window.document.getElementById("btnLogar").onclick = () => { logar() }
+
+            if(params.reset)
+                reset();
 
             if(!tokenEndpoint || !authEndpoint || !clientId)
                 window.location.href = "/?reset=true"
@@ -251,14 +281,13 @@
     <br/>
     <button onclick="window.location.href = '/?configurado=true'" type="button">Home</button> 
     <button id="resetButton" type="button">Resetar</button> 
-    <!-- <button id="avancar" type="button">Próximo passo</button> -->
     <br/><br/>
     
     <h1>Authorization Code + PKCE</h1>
     <div id="fase1" hidden>
         <h2>Passo 1 - Authorization Request</h2>
-        Nessa fase a aplicação deve direcionar o usuário para o Authorization Server afim de que o processo de autorização seja realizado.<br/>
-        O processo consiste em redirecionar o usuário para o Authorization Server passando os parâmetros necessários.<br/><br/>
+        Nessa fase a aplicação deve direcionar o usuário para o Authorization Server afim de que o processo de autorização seja realizado. Os parâmetros abaixo devem ser enviados via query param.
+        <br/><br/>
 
         <table class="tg">
         <thead>
@@ -282,7 +311,7 @@
           </tr>
           <tr>
             <td class="tg-0pky">scope</td>
-            <td class="tg-0pky">Escopo da solicitação. Se não incluir openid será considerada uma request oauth2.</td>
+            <td class="tg-0pky">Escopo da solicitação. Se não incluir openid será considerada uma request oauth2 pura.</td>
           </tr>
           <tr>
             <td class="tg-0pky">state</td>
@@ -301,6 +330,19 @@
         </tbody>
         </table>
         <br/>
+
+        Na URL de redirecionamento é necessário enviar o code_challenge, atributo gerado a partir do code_verifier. O code_verifier deve ser uma String aleatória que deve possuir entre 43 e 128 caracteres usando os caracteres [A-Z] / [a-z] / [0-9] / "-" / "." / " _" / "~". 
+
+        O code_verifier gerado foi:
+
+        <div class="code" id="codeVerifier"></div>
+
+        Se o code_challenge_method for PLAIN o code_challenge deverá possuir valor igual ao code_verifier.<br/>
+        Caso o code_challenge_method seja S256 o code_challenge deverá ser BASE64URL-ENCODE(SHA256(ASCII(code_verifier))).<br/>
+        Nesse exemplo usaremos S256, logo para o code_verifier gerado o code_challenge será:
+
+        <div class="code" id="codeChallenge"></div>
+
         Abaixo exemplo de URL gerada para redirecionamento:
 
         <div class="code" id="authEndpoint"></div>
@@ -321,23 +363,70 @@
     <div id="fase3" hidden>
         <h2>Passo 3 - Obter o code</h2>
         Nessa fase o authorization server redireciona o usuário de volta para a aplicação cliente.<br/>
-        A aplicação deve obter da URL o code e utilizar o mesmo no passo seguinte.
+        Abaixo está a URL de retorno gerada pelo Authorization Server e utilizada para redirecionar o usuário de volta para a aplicação após o o mesmo se autenticar com sucesso.
+        
         <div class="code" id="urlComCode"></div>
-
-        DICA: Observe o parâmetro code na URL acima.<br/><br/>
+        
+        O parâmetro `state` deve ser correspondente ao esperado (gerado no passo 1).<br/>
+        
+        A aplicação deve obter da URL de retorno o parâmetro `code` (recebido via query param) e utilizar o mesmo no passo seguinte.<br/><br/>
     
         <button id="btnCode" type="button">Extrair code</button><br/><br/>
         
     </div>
 
     <div id="fase4" hidden>
+        
         <h2>Passo 4 - Token Request</h2>
-        Obtido o code a aplicação deve fazer a requisição para obtenção do token.<br/>
-        O valor obtido no passo anterior deve ser informado na request.
 
+        O code obtido no passo anterior é:
         <div class="code" id="code"></div>
 
-        DICA: Inspecione a requisição realizada pelo Browser.<br/><br/>
+        Após a obtenção do code o client deverá realizar uma requisição HTTP POST ao endpoint de token: 
+
+        <div class="code" id="tokenEndpoint"></div>
+
+        <div id="secret" hidden>
+            Considerando que o client possui secret (confidential) o mesmo deve utilizar seu client id e secret para autenticar com o Authorization Sever utilizando  <a target="_blank" href="https://www.rfc-editor.org/rfc/rfc7617">Basic HTTP Authentication Schema</a>. O header authorization terá o seguinte formato:
+            <div class="code" id="headerAuthorization"></div>
+        </div>
+        
+        O corpo (body) da requisição deverá possuir o formato (Content-Type) "application/x-www-form-urlencoded" com encoding UTF-8 e deverá possuir os seguintes parâmetros: <br/><br/>
+
+        <table class="tg">
+            <thead>
+              <tr>
+                <th class="tg-0pky">Parâmetro</th>
+                <th class="tg-0pky">Descrição</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="tg-0pky">grant_type</td>
+                <td class="tg-0pky">Deverá possuir o valor `authorization_code`</td>
+              </tr>
+              <tr>
+                <td class="tg-0pky">redirect_uri</td>
+                <td class="tg-0pky">Deverá ser a mesma informada no passo 1</td>
+              </tr>
+              <tr>
+                <td class="tg-0pky">client_id</td>
+                <td class="tg-0pky">Identificador do client</td>
+              </tr>
+              <tr>
+                <td class="tg-0pky">code</td>
+                <td class="tg-0pky">Obtido no passo anterior</td>
+              </tr>
+              <tr>
+                <td class="tg-0pky">code_verifier</td>
+                <td class="tg-0pky">Valor gerado no passo 1</td>
+              </tr>
+            </tbody>
+            </table>
+            <br/>
+
+        Considerando a tabela acima o corpo da requisição será:
+        <div class="code" id="requestBody"></div>
 
         <button id="btnToken" type="button">Obter token</button><br/>
         <br/>
@@ -349,8 +438,7 @@
         Abaixo a resposta obtida:
         
         <div class="code" id="tokenResponse"></div>
-        <br/>
-        
+        <div class="warn">Utilize a opção `Obter token` novamente e você receberá um erro `Code not valid`. Isso ocorre pois a especificação deixa explícito que o `code` só pode ser utilizado uma única vez.</div>
     </div>
 
 </div>

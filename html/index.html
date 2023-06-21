@@ -18,35 +18,52 @@
         }
 
         configurar = () => {
-            showElement("fluxos");
+
             persist("authEndpoint", window.document.getElementById("authEndpoint").value);
             disableElement("authEndpoint");
             persist("tokenEndpoint", window.document.getElementById("tokenEndpoint").value);
             disableElement("tokenEndpoint");
             persist("clientId", window.document.getElementById("clientId").value);
             disableElement("clientId");
+            persist("clientSecret", window.document.getElementById("clientSecret").value);
+            disableElement("clientSecret");
+
+            for(let item of window.document.getElementsByClassName("link-acesso")) {
+              if(!((item.classList.contains("no-secret") && get("clientSecret")) || item.classList.contains("need-secret") && !get("clientSecret"))) {
+                  item.removeAttribute("hidden");
+              }
+            }
+
+            if(get("clientSecret")) {
+              window.document.getElementById("bold-if-confidential").innerHTML = "<b>" + window.document.getElementById("bold-if-confidential").innerText + "</b>"
+            } else {
+              window.document.getElementById("bold-if-public").innerHTML = "<b>" + window.document.getElementById("bold-if-public").innerText + "</b>"
+            }
+
+            for(let item of window.document.getElementsByClassName("clientId"))
+              item.innerHTML = window.document.getElementById("clientId").value;
+
+            for(let item of window.document.getElementsByClassName("origins"))
+              item.innerHTML = window.location.origin;
+            
+        }
+
+        initOrDefault = (key, defaultValue) => {
+          let value = get(key);
+          if(value || value == "")
+            window.document.getElementById(key).value = value;  
+          else
+            window.document.getElementById(key).value = defaultValue;
+            
         }
 
         window.document.getElementById("resetButton").onclick = () => { resetButton(); }
         window.document.getElementById("configurar").onclick = () => { configurar(); }
 
-        let authEndpoint = get("authEndpoint");
-        if(!authEndpoint)
-            window.document.getElementById("authEndpoint").value = "http://localhost:8282/auth/realms/master/protocol/openid-connect/auth";
-        else
-            window.document.getElementById("authEndpoint").value = authEndpoint;
-
-        let tokenEndpoint = get("tokenEndpoint");
-        if(!tokenEndpoint)
-            window.document.getElementById("tokenEndpoint").value = "http://localhost:8282/auth/realms/master/protocol/openid-connect/token";
-        else
-            window.document.getElementById("tokenEndpoint").value = tokenEndpoint;
-
-        let clientId = get("clientId");
-        if(!clientId)
-            window.document.getElementById("clientId").value = "client";
-        else
-            window.document.getElementById("clientId").value = clientId;
+        initOrDefault("authEndpoint", "http://localhost:8282/auth/realms/master/protocol/openid-connect/auth");
+        initOrDefault("tokenEndpoint", "http://localhost:8282/auth/realms/master/protocol/openid-connect/token");
+        initOrDefault("clientId", "client");
+        initOrDefault("clientSecret", "paste_here_your_client_secret_if_you_have_one");
 
         if(params.reset) {
             resetButton();
@@ -79,13 +96,19 @@
                 <td style="padding: 10px 5px">Client ID</td>
                 <td><input id="clientId" size="100"></input></td>  
               </tr>
+              <tr>
+                <td style="padding: 10px 5px">Client Secret</td>
+                <td><input id="clientSecret" size="100"></input></td>  
+              </tr>
             </tbody>
         </table>
 
         <button id="resetButton" type="button">Resetar</button> <button id="configurar" type="button">Configurar</button> 
-        <br/><br/>
     </div>
-    <div id="fluxos" hidden>
+    
+    <div id="fluxos">
+
+      <div class="warn">Antes de iniciar o exercício desejado certifique-se de criar e configurar o client conforme consta na coluna <b>Keycloak / RHSSO</b></div>
 
         <table class="tg">
         <thead>
@@ -99,20 +122,49 @@
             <td class="tg-0pky">Authorization Code + PKCE</td>
             <td class="tg-0pky">
               <ul>
-              <li>Client Protocol: openid-connect </li>
-              <li>Access Type: public </li>
-              <li>Standard Flow Enabled: on </li>
-              <li>Valid Redirect URIs: * </li>
-              <li>Web Origins: * </li>
+                <li>Client Id: <span class="clientId"></span> </li>
+                <li>Client Protocol: openid-connect </li>
+                <li>
+                  <span>Access Type: </span>
+                  <span id="bold-if-public">public </span>
+                  <span>| </span>
+                  <span id="bold-if-confidential">confidential</li></span>
+                <li>Standard Flow Enabled: on </li>
+                <li>Root URL: <span class="origins"></span></li>
+                <li>Valid Redirect URIs: /*</li>
+                <li>Web Origins: + </li>
               </ul>
             </td>
-            <td class="tg-0pky"><a href="code_pkce.html">Acessar</a></td>
+            <td class="tg-0pky link-acesso" hidden><a href="code_pkce.html?reset=true">Acessar</a>
+          </td>
+          <tr>
+            <td class="tg-0pky">Client Credentials</td>
+            <td class="tg-0pky">
+              <ul>
+                <li>Client Id: <span class="clientId"></span> </li>
+                <li>Client Protocol: openid-connect </li>
+                <li>Access Type: confidential </li>
+                <li>Service Account Enabled: On </li>
+                <div class="info">
+                  Uma vez que estamos utilizando um Browser para simular um fluxo destinado a aplicações backends,
+                  <br/> torna-se necessário ativar o Standard Flow para que seja possível configurar opções referente a cors.
+                  <br/> Caso isso não seja realizado ocorrerá erro de cors ao realizar a requisição para obtenção de tokens.
+                  <br/> Em um cenário real as opções abaixo não devem ser configuradas.
+                  </div>
+                <li>Standard Flow Enabled: on </li>
+                <li>Root URL: <span class="origins"></span></li>
+                <li>Valid Redirect URIs: /*</li>
+                <li>Web Origins: + </li>
+              </ul>
+            </td>
+            <td class="tg-0pky link-acesso need-secret" hidden><a href="client_credentials.html?reset=true">Acessar</a>
+          </td>
             
           </tr>
         </tbody>
         </table>
 
-        <div class="warn">Antes de iniciar o exercício desejado certifique-se de criar e configurar o client conforme consta na coluna <b>Keycloak / RHSSO</b></div>
+        
 
     </div> 
 
